@@ -1,0 +1,384 @@
+{% extends 'base.html' %}
+{% block title %}Resume Builder — CareerHub{% endblock %}
+{% block content %}
+<section class="section cv-builder">
+  <div class="cv-topbar">
+    <div>
+      <span class="cv-eyebrow">CAREER TOOLS</span>
+      <h1>Resume Builder</h1>
+      <p>Create a clean, ATS-friendly resume with a live A4 preview. Your content is saved to your CareerHub profile.</p>
+    </div>
+    <div class="cv-top-actions">
+      <a class="btn ghost" href="{{ url_for('candidate.profile') }}">Profile</a>
+      <a class="btn {% if missing %}disabled{% endif %}" id="topDownload" href="{{ url_for('candidate.resume_builder_download', template=selected_template|default('modern')) }}">Download PDF</a>
+    </div>
+  </div>
+
+  {% set required = ['personal','summary','skills','education','experience','projects'] %}
+  {% set done = required|select('in', sections)|list|length %}
+  <div class="cv-progress-card">
+    <div class="cv-progress-copy">
+      <div class="cv-progress-icon">{{ '✓' if done == required|length else done }}</div>
+      <div><strong>{{ 'Resume ready' if done == required|length else 'Build your resume' }}</strong><span>{{ done }} of {{ required|length }} core sections complete</span></div>
+    </div>
+    <div class="cv-progress-track"><i id="completionBar" style="width:{{ (done / required|length * 100)|round|int }}%"></i></div>
+    <strong id="completionPercent">{{ (done / required|length * 100)|round|int }}%</strong>
+  </div>
+
+  <form method="post" class="cv-layout" id="resumeBuilderForm" data-email="{{ current_user.email|e }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="resume_template" id="resumeTemplate" value="{{ selected_template|default('modern') }}">
+
+    <main class="cv-editor">
+      <section class="cv-card" data-section="personal">
+        <div class="cv-card-head">
+          <div class="cv-number">01</div>
+          <div><h2>Personal details</h2><p>Make it easy for a recruiter to identify and contact you.</p></div>
+          <span class="cv-status {% if sections.personal %}done{% endif %}"><b>✓</b><span>{{ 'Complete' if sections.personal else 'Required' }}</span></span>
+        </div>
+        <div class="cv-fields">
+          <label class="cv-field span-2"><span>Full name <em>*</em></span><input class="input" name="full_name" value="{{ profile.full_name }}" required maxlength="120" placeholder="e.g. Abdul Musawwir"></label>
+          <label class="cv-field"><span>Phone <em>*</em></span><input class="input" name="phone" value="{{ profile.phone }}" required maxlength="30" placeholder="+91 98XXXXXXXX"></label>
+          <label class="cv-field"><span>Location <em>*</em></span><input class="input" name="location" value="{{ profile.location }}" required maxlength="120" placeholder="Delhi, India"></label>
+          <label class="cv-field span-2"><span>Professional headline</span><input class="input" name="headline" value="{{ profile.headline }}" maxlength="180" placeholder="Python Developer | SQL | Flask"></label>
+        </div>
+      </section>
+
+      <section class="cv-card" data-section="summary">
+        <div class="cv-card-head">
+          <div class="cv-number">02</div>
+          <div><h2>Professional summary</h2><p>Keep it specific, keyword-rich and focused on the role you want.</p></div>
+          <span class="cv-status {% if sections.summary %}done{% endif %}"><b>✓</b><span>{{ 'Complete' if sections.summary else 'Required' }}</span></span>
+        </div>
+        <div class="cv-body">
+          <div class="cv-textarea-wrap"><textarea class="input" name="summary" rows="6" maxlength="5000" required placeholder="Example: Computer Science graduate with hands-on experience in Python, SQL and web development. Built job portals and data-driven applications using Flask and MySQL. Seeking an entry-level software or data role.">{{ profile.summary }}</textarea><small><span id="summaryCount">0</span>/5000</small></div>
+          <div class="cv-tip"><b>Smart tip</b><span>Use this formula: <strong>who you are + strongest skills + proof/project + target role.</strong></span></div>
+        </div>
+      </section>
+
+      <section class="cv-card" data-section="skills">
+        <div class="cv-card-head">
+          <div class="cv-number">03</div>
+          <div><h2>Skills</h2><p>Add skills relevant to the jobs you are targeting. Separate them with commas.</p></div>
+          <span class="cv-status {% if sections.skills %}done{% endif %}"><b>✓</b><span>{{ 'Complete' if sections.skills else 'Required' }}</span></span>
+        </div>
+        <div class="cv-body">
+          <textarea class="input" name="skills_text" rows="4" maxlength="3000" required placeholder="Python, Core Java, SQL, MySQL, Flask, HTML, CSS, JavaScript, React, Excel">{{ profile.skills_text }}</textarea>
+          <div class="cv-skill-chips" id="skillChips"></div>
+        </div>
+      </section>
+
+      <section class="cv-card" data-section="education">
+        <div class="cv-card-head">
+          <div class="cv-number">04</div>
+          <div><h2>Education</h2><p>List your most relevant qualifications, newest first.</p></div>
+          <button type="button" class="btn small ghost" data-add="education">+ Add education</button>
+        </div>
+        <div id="education-list" class="cv-repeat-list">
+          {% for e in profile.education %}
+          <div class="cv-repeat education-row"><label><span>Degree / Diploma</span><input class="input" name="education_degree[]" value="{{ e.degree }}" placeholder="B.Tech / Diploma / BCA"></label><label><span>Institution</span><input class="input" name="education_institution[]" value="{{ e.institution }}" placeholder="College / University"></label><label><span>Year</span><input class="input" type="number" name="education_year[]" value="{{ e.year or '' }}" min="1950" max="2100" placeholder="2026"></label><button type="button" class="cv-remove" aria-label="Remove education">×</button></div>
+          {% else %}
+          <div class="cv-repeat education-row"><label><span>Degree / Diploma</span><input class="input" name="education_degree[]" placeholder="B.Tech / Diploma / BCA"></label><label><span>Institution</span><input class="input" name="education_institution[]" placeholder="College / University"></label><label><span>Year</span><input class="input" type="number" name="education_year[]" min="1950" max="2100" placeholder="2026"></label><button type="button" class="cv-remove" aria-label="Remove education">×</button></div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="cv-card" data-section="experience">
+        <div class="cv-card-head">
+          <div class="cv-number">05</div>
+          <div><h2>Experience</h2><p>Add jobs, internships and relevant work. Freshers can use the dedicated option.</p></div>
+          <span class="cv-status {% if sections.experience %}done{% endif %}"><b>✓</b><span>{{ 'Complete' if sections.experience else 'Required' }}</span></span>
+        </div>
+        <div class="cv-body">
+          <label class="cv-fresher"><input type="checkbox" name="resume_is_fresher" value="1" {% if profile.resume_is_fresher %}checked{% endif %}><span><strong>I'm a fresher</strong><small>I don't have professional experience yet</small></span></label>
+          <div id="experience-list" class="cv-repeat-list {% if profile.resume_is_fresher %}disabled{% endif %}">
+            {% for e in profile.experience %}
+            <div class="cv-repeat experience-row"><label><span>Role / Job title</span><input class="input" name="experience_title[]" value="{{ e.title }}" placeholder="Software Intern"></label><label><span>Company</span><input class="input" name="experience_company[]" value="{{ e.company }}" placeholder="Company name"></label><label><span>Years</span><input class="input" type="number" step="0.1" min="0" max="60" name="experience_years[]" value="{{ e.years or '' }}" placeholder="1.0"></label><button type="button" class="cv-remove" aria-label="Remove experience">×</button></div>
+            {% else %}
+            <div class="cv-repeat experience-row"><label><span>Role / Job title</span><input class="input" name="experience_title[]" placeholder="Software Intern"></label><label><span>Company</span><input class="input" name="experience_company[]" placeholder="Company name"></label><label><span>Years</span><input class="input" type="number" step="0.1" min="0" max="60" name="experience_years[]" placeholder="1.0"></label><button type="button" class="cv-remove" aria-label="Remove experience">×</button></div>
+            {% endfor %}
+          </div>
+          <button type="button" class="btn small ghost" data-add="experience">+ Add experience</button>
+        </div>
+      </section>
+
+      <section class="cv-card" data-section="projects">
+        <div class="cv-card-head">
+          <div class="cv-number">06</div>
+          <div><h2>Projects</h2><p>Show evidence of what you can build. Focus on your contribution and outcome.</p></div>
+          <button type="button" class="btn small ghost" data-add="project">+ Add project</button>
+        </div>
+        <div id="project-list" class="cv-project-list">
+          {% for x in profile.projects %}
+          <div class="cv-project"><div class="cv-project-grid"><label><span>Project name</span><input class="input" name="project_name[]" value="{{ x.name }}" placeholder="CareerHub Job Portal"></label><label><span>Technologies</span><input class="input" name="project_technologies[]" value="{{ x.technologies }}" placeholder="Python, Flask, PostgreSQL"></label><button type="button" class="cv-remove" aria-label="Remove project">×</button></div><label><span>What did you build?</span><textarea class="input" name="project_description[]" rows="3" maxlength="5000" placeholder="Built..., implemented..., improved...">{{ x.description }}</textarea></label><label><span>GitHub / live URL <small>(optional)</small></span><input class="input" name="project_url[]" value="{{ x.project_url }}" placeholder="https://github.com/..."></label></div>
+          {% else %}
+          <div class="cv-project"><div class="cv-project-grid"><label><span>Project name</span><input class="input" name="project_name[]" placeholder="CareerHub Job Portal"></label><label><span>Technologies</span><input class="input" name="project_technologies[]" placeholder="Python, Flask, PostgreSQL"></label><button type="button" class="cv-remove" aria-label="Remove project">×</button></div><label><span>What did you build?</span><textarea class="input" name="project_description[]" rows="3" maxlength="5000" placeholder="Built..., implemented..., improved..."></textarea></label><label><span>GitHub / live URL <small>(optional)</small></span><input class="input" name="project_url[]" placeholder="https://github.com/..."></label></div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <details class="cv-card cv-optional" open>
+        <summary><div class="cv-card-head"><div class="cv-number">07</div><div><h2>Certifications <span>Optional</span></h2><p>Add certificates that support your target role.</p></div><span class="cv-chevron">⌄</span></div></summary>
+        <div id="certification-list" class="cv-repeat-list">
+          {% for c in profile.certifications %}
+          <div class="cv-repeat cert-row four"><label><span>Certificate</span><input class="input" name="cert_name[]" value="{{ c.name }}" placeholder="Certification name"></label><label><span>Issuer</span><input class="input" name="cert_issuer[]" value="{{ c.issuer }}" placeholder="Issuer"></label><label><span>Year</span><input class="input" type="number" name="cert_year[]" value="{{ c.issue_year or '' }}" min="1950" max="2100" placeholder="2026"></label><label><span>Credential URL</span><input class="input" name="cert_url[]" value="{{ c.credential_url }}" placeholder="https://..."></label><button type="button" class="cv-remove" aria-label="Remove certification">×</button></div>
+          {% else %}
+          <div class="cv-repeat cert-row four"><label><span>Certificate</span><input class="input" name="cert_name[]" placeholder="Certification name"></label><label><span>Issuer</span><input class="input" name="cert_issuer[]" placeholder="Issuer"></label><label><span>Year</span><input class="input" type="number" name="cert_year[]" min="1950" max="2100" placeholder="2026"></label><label><span>Credential URL</span><input class="input" name="cert_url[]" placeholder="https://..."></label><button type="button" class="cv-remove" aria-label="Remove certification">×</button></div>
+          {% endfor %}
+        </div>
+        <button type="button" class="btn small ghost cv-add-inside" data-add="certification">+ Add certification</button>
+      </details>
+
+      <details class="cv-card cv-optional">
+        <summary><div class="cv-card-head"><div class="cv-number">08</div><div><h2>Links <span>Optional</span></h2><p>LinkedIn, GitHub and portfolio links.</p></div><span class="cv-chevron">⌄</span></div></summary>
+        <div class="cv-fields cv-links-fields">
+          <label class="cv-field"><span>LinkedIn</span><input class="input" name="linkedin" value="{{ profile.links.linkedin if profile.links else '' }}" placeholder="https://linkedin.com/in/..."></label>
+          <label class="cv-field"><span>GitHub</span><input class="input" name="github" value="{{ profile.links.github if profile.links else '' }}" placeholder="https://github.com/..."></label>
+          <label class="cv-field"><span>Portfolio</span><input class="input" name="portfolio" value="{{ profile.links.portfolio if profile.links else '' }}" placeholder="https://..."></label>
+        </div>
+      </details>
+
+      <details class="cv-card cv-optional">
+        <summary><div class="cv-card-head"><div class="cv-number">09</div><div><h2>Achievements <span>Optional</span></h2><p>Awards, competitions, leadership and measurable wins.</p></div><span class="cv-chevron">⌄</span></div></summary>
+        <div class="cv-body"><textarea class="input" name="achievements" rows="4" maxlength="5000" placeholder="One achievement per line">{{ profile.achievements }}</textarea></div>
+      </details>
+
+      <details class="cv-card cv-optional">
+        <summary><div class="cv-card-head"><div class="cv-number">10</div><div><h2>Languages <span>Optional</span></h2><p>Languages you can use professionally.</p></div><span class="cv-chevron">⌄</span></div></summary>
+        <div class="cv-body"><input class="input" name="languages" value="{{ profile.languages }}" maxlength="1000" placeholder="English — Professional, Hindi — Native"></div>
+      </details>
+
+      <div class="cv-savebar">
+        <div><strong id="saveMessage">{{ 'All core sections are ready.' if not missing else 'Keep going — your progress is saved.' }}</strong><span>CareerHub saves your resume data to your profile.</span></div>
+        <div><button class="btn ghost" type="submit" name="action" value="save">Save progress</button><button class="btn" type="submit" name="action" value="create" id="createResume" {% if missing %}disabled{% endif %}>Create & Download PDF →</button></div>
+      </div>
+    </main>
+
+    <aside class="cv-side">
+      <div class="cv-preview-card">
+        <div class="cv-preview-toolbar">
+          <div><strong>Live preview</strong><span>ATS-friendly A4 layout</span></div>
+          <span class="cv-live"><i></i> Live</span>
+        </div>
+        <div class="cv-template-picker">
+          <span>Template</span>
+          <div role="group" aria-label="Resume template">
+            <button type="button" data-template="modern" class="template-btn active">Modern</button>
+            <button type="button" data-template="classic" class="template-btn">Classic</button>
+            <button type="button" data-template="minimal" class="template-btn">Minimal</button>
+          </div>
+        </div>
+
+        <div class="cv-paper modern" id="resumePreview">
+          <header class="cv-paper-header">
+            <h2 id="previewName">{{ profile.full_name or 'Your Name' }}</h2>
+            <p id="previewHeadline">{{ profile.headline or 'Professional headline' }}</p>
+            <div id="previewContact">{{ profile.location or 'Location' }}{% if profile.phone %} · {{ profile.phone }}{% endif %} · {{ current_user.email }}</div>
+          </header>
+          <section class="cv-paper-section" id="previewSummarySection"><h3>SUMMARY</h3><p id="previewSummary">{{ profile.summary or 'Your professional summary will appear here.' }}</p></section>
+          <section class="cv-paper-section" id="previewSkillsSection"><h3>SKILLS</h3><div id="previewSkills" class="preview-skill-list"></div></section>
+          <section class="cv-paper-section" id="previewExperienceSection"><h3>EXPERIENCE</h3><div id="previewExperience"></div></section>
+          <section class="cv-paper-section" id="previewEducationSection"><h3>EDUCATION</h3><div id="previewEducation"></div></section>
+          <section class="cv-paper-section" id="previewProjectsSection"><h3>PROJECTS</h3><div id="previewProjects"></div></section>
+          <section class="cv-paper-section" id="previewCertSection"><h3>CERTIFICATIONS</h3><div id="previewCertifications"></div></section>
+          <section class="cv-paper-section" id="previewAchievementsSection"><h3>ACHIEVEMENTS</h3><div id="previewAchievements"></div></section>
+          <section class="cv-paper-section" id="previewLanguagesSection"><h3>LANGUAGES</h3><p id="previewLanguages"></p></section>
+          <section class="cv-paper-section" id="previewLinksSection"><h3>LINKS</h3><p id="previewLinks"></p></section>
+        </div>
+        <a class="btn cv-preview-download {% if missing %}disabled{% endif %}" id="previewDownload" href="{{ url_for('candidate.resume_builder_download', template=selected_template|default('modern')) }}">Download this template ↓</a>
+      </div>
+
+      <div class="cv-insight-card">
+        <div class="cv-score-head"><div><span>Resume quality</span><strong id="resumeScore">0</strong><small>/100</small></div><span id="scoreLabel">Building</span></div>
+        <div class="cv-score-track"><i id="scoreBar"></i></div>
+        <ul id="smartSuggestions"><li>Add your strongest role-specific keywords.</li><li>Use action verbs and measurable outcomes in projects.</li><li>Keep the final resume focused and easy to scan.</li></ul>
+      </div>
+    </aside>
+  </form>
+</section>
+
+<script>
+(function () {
+  const form = document.getElementById('resumeBuilderForm');
+  if (!form) return;
+  const email = form.dataset.email || '';
+  const preview = document.getElementById('resumePreview');
+  const templateInput = document.getElementById('resumeTemplate');
+  const topDownload = document.getElementById('topDownload');
+  const previewDownload = document.getElementById('previewDownload');
+  const safe = value => String(value || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+  const val = name => (form.querySelector(`[name="${name}"]`)?.value || '').trim();
+
+  function updateLinks() {
+    const t = templateInput.value || 'modern';
+    const base = "{{ url_for('candidate.resume_builder_download') }}";
+    const href = base + '?template=' + encodeURIComponent(t);
+    topDownload.href = href; previewDownload.href = href;
+  }
+
+  function rowValues(selector, names) {
+    return [...form.querySelectorAll(selector)].map(row => Object.fromEntries(names.map(n => [n, (row.querySelector(`[name="${n}[]"]`)?.value || '').trim()])));
+  }
+
+  function renderList(targetId, items, emptyText, renderer) {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    target.innerHTML = items.length ? items.map(renderer).join('') : `<p class="preview-empty">${safe(emptyText)}</p>`;
+  }
+
+  function updatePreview() {
+    document.getElementById('previewName').textContent = val('full_name') || 'Your Name';
+    document.getElementById('previewHeadline').textContent = val('headline') || 'Professional headline';
+    document.getElementById('previewContact').textContent = [val('location'), val('phone'), email].filter(Boolean).join(' · ');
+    document.getElementById('previewSummary').textContent = val('summary') || 'Your professional summary will appear here.';
+
+    const skills = val('skills_text').split(',').map(x => x.trim()).filter(Boolean);
+    document.getElementById('previewSkills').innerHTML = skills.length ? skills.map(x => `<span>${safe(x)}</span>`).join('') : '<p class="preview-empty">Add your skills.</p>';
+
+    const exp = rowValues('.experience-row', ['experience_title','experience_company','experience_years']).filter(x => x.experience_title || x.experience_company);
+    renderList('previewExperience', exp, 'Add experience or select Fresher.', x => `<div class="preview-item"><b>${safe(x.experience_title || 'Role')}</b><span>${safe(x.experience_company)}${x.experience_years ? ' · ' + safe(x.experience_years) + ' years' : ''}</span></div>`);
+
+    const edu = rowValues('.education-row', ['education_degree','education_institution','education_year']).filter(x => x.education_degree || x.education_institution);
+    renderList('previewEducation', edu, 'Add your education.', x => `<div class="preview-item"><b>${safe(x.education_degree || 'Qualification')}</b><span>${safe(x.education_institution)}${x.education_year ? ' · ' + safe(x.education_year) : ''}</span></div>`);
+
+    const projects = rowValues('.cv-project', ['project_name','project_technologies','project_description']).filter(x => x.project_name || x.project_description);
+    renderList('previewProjects', projects.slice(0, 4), 'Add your strongest projects.', x => `<div class="preview-item"><b>${safe(x.project_name || 'Project')}</b><span>${safe(x.project_technologies)}</span>${x.project_description ? `<p>${safe(x.project_description)}</p>` : ''}</div>`);
+
+    const certs = rowValues('.cert-row', ['cert_name','cert_issuer','cert_year']).filter(x => x.cert_name);
+    renderList('previewCertifications', certs.slice(0, 4), '', x => `<div class="preview-item"><b>${safe(x.cert_name)}</b><span>${safe(x.cert_issuer)}${x.cert_year ? ' · ' + safe(x.cert_year) : ''}</span></div>`);
+
+    const achievements = val('achievements').split('\n').map(x => x.trim()).filter(Boolean);
+    document.getElementById('previewAchievements').innerHTML = achievements.length ? achievements.slice(0,5).map(x => `<div class="preview-bullet">• ${safe(x)}</div>`).join('') : '';
+    document.getElementById('previewLanguages').textContent = val('languages');
+    const links = [['LinkedIn',val('linkedin')],['GitHub',val('github')],['Portfolio',val('portfolio')].filter(Boolean)];
+    document.getElementById('previewLinks').innerHTML = [['LinkedIn',val('linkedin')],['GitHub',val('github')],['Portfolio',val('portfolio')].filter(Boolean)].filter(x => x[1]).map(x => `<span class="preview-link">${safe(x[0])}: ${safe(x[1])}</span>`).join(' · ');
+
+    ['previewSummarySection','previewSkillsSection','previewExperienceSection','previewEducationSection','previewProjectsSection','previewCertSection','previewAchievementsSection','previewLanguagesSection','previewLinksSection'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const body = el.querySelector('p,div:not(.cv-paper-section)');
+      if (id === 'previewSummarySection') el.hidden = !val('summary');
+      if (id === 'previewSkillsSection') el.hidden = !skills.length;
+      if (id === 'previewExperienceSection') el.hidden = !exp.length && !form.querySelector('[name="resume_is_fresher"]')?.checked;
+      if (id === 'previewEducationSection') el.hidden = !edu.length;
+      if (id === 'previewProjectsSection') el.hidden = !projects.length;
+      if (id === 'previewCertSection') el.hidden = !certs.length;
+      if (id === 'previewAchievementsSection') el.hidden = !achievements.length;
+      if (id === 'previewLanguagesSection') el.hidden = !val('languages');
+      if (id === 'previewLinksSection') el.hidden = ![['linkedin', 'github', 'portfolio'].some(x => val(x))];
+    });
+  }
+
+  function updateQuality() {
+    const required = [
+      ['full_name', 10], ['phone', 5], ['location', 5], ['headline', 8],
+      ['summary', 15], ['skills_text', 12]
+    ];
+    let score = required.reduce((n, [field, points]) => n + (val(field) ? points : 0), 0);
+    const edu = rowValues('.education-row', ['education_degree','education_institution']).filter(x => x.education_degree && x.education_institution).length;
+    const exp = rowValues('.experience-row', ['experience_title','experience_company']).filter(x => x.experience_title && x.experience_company).length;
+    const projects = rowValues('.cv-project', ['project_name','project_description']).filter(x => x.project_name && x.project_description).length;
+    score += Math.min(12, edu * 6) + Math.min(12, exp * 6) + Math.min(18, projects * 6);
+    if (val('linkedin') || val('github') || val('portfolio')) score += 5;
+    if (val('achievements')) score += 4;
+    if (val('languages')) score += 3;
+    const summaryWords = val('summary').split(/\s+/).filter(Boolean).length;
+    if (summaryWords >= 35 && summaryWords <= 90) score += 3;
+    score = Math.min(100, score);
+    document.getElementById('resumeScore').textContent = score;
+    document.getElementById('scoreBar').style.width = score + '%';
+    document.getElementById('scoreLabel').textContent = score >= 85 ? 'Strong' : score >= 65 ? 'Good' : score >= 40 ? 'Developing' : 'Building';
+
+    const suggestions = [];
+    if (!val('headline')) suggestions.push('Add a target-role headline such as “Python Developer | SQL | Flask”.');
+    if (summaryWords < 35) suggestions.push('Expand the summary with your strongest skills, proof and target role.');
+    if (!val('skills_text')) suggestions.push('Add 6–12 job-relevant skills.');
+    if (!projects) suggestions.push('Add projects with a clear contribution and outcome.');
+    if (!val('linkedin') && !val('github')) suggestions.push('Add LinkedIn or GitHub so recruiters can verify your work.');
+    if (!suggestions.length) suggestions.push('Great foundation. Review wording and keep the final resume to 1–2 pages.');
+    document.getElementById('smartSuggestions').innerHTML = suggestions.slice(0,3).map(x => `<li>${safe(x)}</li>`).join('');
+  }
+
+  function updateCompletion() {
+    const complete = [
+      !!val('full_name') && !!val('phone') && !!val('location'),
+      !!val('summary'), !!val('skills_text'),
+      rowValues('.education-row', ['education_degree','education_institution']).some(x => x.education_degree && x.education_institution),
+      !!form.querySelector('[name="resume_is_fresher"]')?.checked || rowValues('.experience-row', ['experience_title','experience_company']).some(x => x.experience_title && x.experience_company),
+      rowValues('.cv-project', ['project_name']).some(x => x.project_name)
+    ].filter(Boolean).length;
+    const pct = Math.round(complete / 6 * 100);
+    document.getElementById('completionBar').style.width = pct + '%';
+    document.getElementById('completionPercent').textContent = pct + '%';
+    const button = document.getElementById('createResume');
+    button.disabled = complete !== 6;
+    document.querySelectorAll('.cv-card[data-section]').forEach(card => {
+      const key = card.dataset.section;
+      const status = card.querySelector('.cv-status');
+      const map = {
+        personal: !!val('full_name') && !!val('phone') && !!val('location'),
+        summary: !!val('summary'), skills: !!val('skills_text'),
+        education: rowValues('.education-row', ['education_degree','education_institution']).some(x => x.education_degree && x.education_institution),
+        experience: !!form.querySelector('[name="resume_is_fresher"]')?.checked || rowValues('.experience-row', ['experience_title','experience_company']).some(x => x.experience_title && x.experience_company),
+        projects: rowValues('.cv-project', ['project_name']).some(x => x.project_name)
+      };
+      status.classList.toggle('done', !!map[key]);
+      status.querySelector('span').textContent = map[key] ? 'Complete' : 'Required';
+    });
+  }
+
+  const templates = {
+    education: () => `<div class="cv-repeat education-row"><label><span>Degree / Diploma</span><input class="input" name="education_degree[]" placeholder="B.Tech / Diploma / BCA"></label><label><span>Institution</span><input class="input" name="education_institution[]" placeholder="College / University"></label><label><span>Year</span><input class="input" type="number" name="education_year[]" min="1950" max="2100" placeholder="2026"></label><button type="button" class="cv-remove" aria-label="Remove education">×</button></div>`,
+    experience: () => `<div class="cv-repeat experience-row"><label><span>Role / Job title</span><input class="input" name="experience_title[]" placeholder="Software Intern"></label><label><span>Company</span><input class="input" name="experience_company[]" placeholder="Company name"></label><label><span>Years</span><input class="input" type="number" step="0.1" min="0" max="60" name="experience_years[]" placeholder="1.0"></label><button type="button" class="cv-remove" aria-label="Remove experience">×</button></div>`,
+    certification: () => `<div class="cv-repeat cert-row four"><label><span>Certificate</span><input class="input" name="cert_name[]" placeholder="Certification name"></label><label><span>Issuer</span><input class="input" name="cert_issuer[]" placeholder="Issuer"></label><label><span>Year</span><input class="input" type="number" name="cert_year[]" min="1950" max="2100" placeholder="2026"></label><label><span>Credential URL</span><input class="input" name="cert_url[]" placeholder="https://..."></label><button type="button" class="cv-remove" aria-label="Remove certification">×</button></div>`,
+    project: () => `<div class="cv-project"><div class="cv-project-grid"><label><span>Project name</span><input class="input" name="project_name[]" placeholder="Project name"></label><label><span>Technologies</span><input class="input" name="project_technologies[]" placeholder="Python, Flask, SQL"></label><button type="button" class="cv-remove" aria-label="Remove project">×</button></div><label><span>What did you build?</span><textarea class="input" name="project_description[]" rows="3" maxlength="5000" placeholder="Built..., implemented..., improved..."></textarea></label><label><span>GitHub / live URL <small>(optional)</small></span><input class="input" name="project_url[]" placeholder="https://github.com/..."></label></div>`
+  };
+
+  document.addEventListener('input', () => { updatePreview(); updateQuality(); updateCompletion(); });
+  document.addEventListener('change', () => { updatePreview(); updateQuality(); updateCompletion(); });
+
+  document.querySelectorAll('[data-add]').forEach(btn => btn.addEventListener('click', () => {
+    const type = btn.dataset.add;
+    const list = document.getElementById(type === 'project' ? 'project-list' : type + '-list');
+    if (!list) return;
+    list.insertAdjacentHTML('beforeend', templates[type]());
+    const added = list.lastElementChild;
+    added.querySelector('.cv-remove')?.addEventListener('click', () => { added.remove(); updatePreview(); updateQuality(); updateCompletion(); });
+    added.querySelector('input,textarea')?.focus();
+    updatePreview(); updateQuality(); updateCompletion();
+  }));
+
+  document.addEventListener('click', e => {
+    const remove = e.target.closest('.cv-remove');
+    if (remove) {
+      const row = remove.closest('.cv-repeat, .cv-project');
+      if (row) row.remove();
+      updatePreview(); updateQuality(); updateCompletion();
+    }
+  });
+
+  const fresher = form.querySelector('[name="resume_is_fresher"]');
+  function toggleFresher() {
+    const list = document.getElementById('experience-list');
+    const disabled = !!fresher?.checked;
+    list.classList.toggle('disabled', disabled);
+    list.querySelectorAll('input').forEach(input => input.disabled = disabled);
+  }
+  fresher?.addEventListener('change', toggleFresher);
+
+  document.querySelectorAll('.template-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.template-btn').forEach(x => x.classList.remove('active'));
+    btn.classList.add('active');
+    templateInput.value = btn.dataset.template;
+    preview.className = 'cv-paper ' + btn.dataset.template;
+    updateLinks();
+  }));
+
+  const initialTemplate = templateInput.value || 'modern';
+  document.querySelector(`[data-template="${initialTemplate}"]`)?.click();
+  document.querySelector('[name="summary"]')?.addEventListener('input', e => document.getElementById('summaryCount').textContent = e.target.value.length);
+  toggleFresher();
+  updatePreview(); updateQuality(); updateCompletion();
+})();
+</script>
+{% endblock %}

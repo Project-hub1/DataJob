@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Hiring Pipeline — {{ job.title }}{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="section-head"><div><p class="eyebrow">ATS PIPELINE</p><h1>{{ job.title }}</h1><p class="muted">{{ total }} applicants · Drag candidates between stages or use the stage menu.</p></div><div><a class="btn ghost" href="{{ url_for('recruiter.applicants', job_id=job.id) }}">List view</a> <a class="btn" href="{{ url_for('recruiter.activity') }}">Activity</a></div></div>
+  <div class="panel" style="margin-bottom:16px;padding:12px 16px"><div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center"><b>Hiring flow</b><span class="muted">Applied → Under Review → Shortlisted → Interview → Hired</span><span class="muted">Rejected / Withdrawn stay outside the active flow</span></div></div>
+  <div class="ats-board" id="atsBoard">
+  {% for status, items in columns.items() %}
+    <div class="ats-column" data-status="{{ status }}">
+      <div class="ats-column-head"><div><b>{{ status }}</b><small>{{ items|length }} candidate{{ '' if items|length == 1 else 's' }}</small></div><span class="status">{{ items|length }}</span></div>
+      <div class="ats-dropzone" data-status="{{ status }}">
+      {% for a in items %}
+        <article class="ats-card" draggable="true" data-application-id="{{ a.id }}" data-current-status="{{ a.status }}">
+          <div class="ats-card-top"><a href="{{ url_for('recruiter.application_detail', application_id=a.id) }}"><b>{{ a.applicant_name or a.candidate.email }}</b></a><span class="match-pill">{% if a.recruiter_rating %}{{ a.recruiter_rating }}★{% else %}New{% endif %}</span></div>
+          <p class="muted">{{ a.applicant_experience or 'Fresher / Not provided' }}</p>
+          <div class="ats-tags">{% if a.recruiter_tags %}{% for tag in a.recruiter_tags.split(',')[:3] %}<span>{{ tag }}</span>{% endfor %}{% else %}<span>{{ a.applicant_skills.split(',')[0] if a.applicant_skills else 'Skills not provided' }}</span>{% endif %}</div>
+          <small class="muted">Applied {{ a.applied_at.strftime('%d %b %Y') }}</small>
+          <select class="ats-stage-select" aria-label="Move candidate" data-application-id="{{ a.id }}">
+            {% for st in ['Applied','Under Review','Shortlisted','Interview','Hired','Rejected','Withdrawn'] %}<option value="{{ st }}" {% if a.status==st %}selected{% endif %}>{{ st }}</option>{% endfor %}
+          </select>
+        </article>
+      {% else %}<div class="ats-empty">Drop candidates here</div>{% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+<script>
+(function(){
+  const csrf=document.querySelector('meta[name="csrf-token"]')?.content||'';
+  const board=document.getElementById('atsBoard'); if(!board) return;
+  let dragged=null;
+  board.querySelectorAll('.ats-card').forEach(card=>{
+    card.addEventListener('dragstart',()=>{dragged=card;card.classList.add('dragging')});
+    card.addEventListener('dragend',()=>{card.classList.remove('dragging');dragged=null;board.querySelectorAll('.ats-dropzone').forEach(z=>z.classList.remove('drop-active'))});
+  });
+  board.querySelectorAll('.ats-dropzone').forEach(zone=>{
+    zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drop-active')});
+    zone.addEventListener('dragleave',()=>zone.classList.remove('drop-active'));
+    zone.addEventListener('drop',async e=>{e.preventDefault();zone.classList.remove('drop-active');if(!dragged)return;await move(dragged.dataset.applicationId,zone.dataset.status)});
+  });
+  board.querySelectorAll('.ats-stage-select').forEach(select=>select.addEventListener('change',()=>move(select.dataset.applicationId,select.value)));
+  async function move(id,status){
+    const body=new URLSearchParams({status,csrf_token:csrf});
+    try{const r=await fetch(`/recruiter/applications/${id}/bulk-status`,{method:'POST',headers:{'X-CSRFToken':csrf,'X-Requested-With':'XMLHttpRequest','Content-Type':'application/x-www-form-urlencoded'},body}); if(r.ok){location.reload()}else{alert('Could not move this candidate. Please try again.')}}catch(e){alert('Network error. Please try again.')}}
+})();
+</script>
+{% endblock %}

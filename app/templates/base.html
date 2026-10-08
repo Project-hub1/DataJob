@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}CareerHub{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}CareerHub — discover jobs, companies and career opportunities.{% endblock %}">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <meta name="theme-color" content="#1769e0">
+</head>
+<body>
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="{{ url_for('main.home') }}" aria-label="CareerHub home">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M4 11h16M10 11v2h4v-2"/></svg></span>
+      <span class="brand-word">Career<span>Hub</span></span>
+    </a>
+
+    <button class="mobile-menu" id="mobileMenu" aria-label="Open menu" aria-expanded="false">☰</button>
+
+    <nav class="nav-links" id="navLinks">
+      {% if current_user.is_authenticated and current_user.role=='candidate' %}
+        <div class="candidate-nav-main">
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('jobs.') and request.endpoint != 'jobs.companies' %}active{% endif %}" href="{{ url_for('jobs.listing') }}">Jobs</a>
+          <a class="nav-link {% if request.endpoint == 'jobs.companies' or request.endpoint == 'jobs.company_detail' %}active{% endif %}" href="{{ url_for('jobs.companies') }}">Companies</a>
+          <a class="nav-link {% if request.endpoint in ['candidate.applications','candidate.interviews'] %}active{% endif %}" href="{{ url_for('candidate.applications') }}">My Applications</a>
+        </div>
+
+        <form class="nav-search" action="{{ url_for('jobs.listing') }}" method="get" role="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.8"></circle><path d="m16 16 4.2 4.2"></path></svg>
+          <input type="search" name="q" value="{{ request.args.get('q','') if request.endpoint and request.endpoint.startswith('jobs.') else '' }}" placeholder="Search jobs, skills or companies" aria-label="Search jobs, skills or companies" autocomplete="off">
+          <button type="submit" aria-label="Search jobs"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.6"></circle><path d="m16 16 4 4"></path></svg></button>
+        </form>
+
+        <div class="nav-actions">
+          <div class="activity-menu">
+            <button class="activity-trigger nav-icon-btn" id="activityTrigger" type="button" aria-label="Notifications" aria-expanded="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21h4"></path></svg>
+              {% set activity_count = unread_notifications + unread_messages %}
+              {% if activity_count %}<span class="activity-dot">{{ activity_count if activity_count < 100 else '99+' }}</span>{% endif %}
+            </button>
+            <div class="activity-panel" id="activityPanel" role="menu" aria-hidden="true">
+              <div class="activity-head"><div><b>Notifications</b><small>Your latest activity</small></div><a href="{{ url_for('candidate.notifications') }}">View all</a></div>
+              <div class="activity-feed">
+                {% for n in nav_notifications %}
+                  <a class="activity-item {% if not n.is_read %}unread{% endif %}" href="{{ n.link or url_for('candidate.notifications') }}">
+                    <span class="activity-item-icon">{{ '●' if not n.is_read else '○' }}</span><div><b>{{ n.title }}</b><small>{{ n.message }}</small><time>{{ n.created_at.strftime('%d %b · %I:%M %p') }}</time></div>
+                  </a>
+                {% else %}<p class="activity-empty">You're all caught up.</p>{% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="nav-profile-menu">
+            <button class="nav-profile-trigger" id="profileMenuTrigger" type="button" aria-expanded="false" aria-haspopup="true">
+              <span class="avatar">{{ (current_user.email[:1] or 'U')|upper }}</span>
+              <span class="profile-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div class="nav-profile-panel" id="profileMenuPanel" aria-hidden="true">
+              <div class="nav-profile-head">
+                <span class="avatar large">{{ (current_user.email[:1] or 'U')|upper }}</span>
+                <div><b>{{ current_user.email }}</b><small>Job seeker</small></div>
+              </div>
+              <a href="{{ url_for('candidate.profile') }}">My profile <span>›</span></a>
+              <a href="{{ url_for('candidate.edit_profile') }}">Edit profile <span>›</span></a>
+              <a href="{{ url_for('candidate.resumes') }}">My resumes <span>›</span></a>
+              <a href="{{ url_for('candidate.saved_jobs') }}">Saved jobs <span>›</span></a>
+              <a href="{{ url_for('candidate.alerts') }}">Job alerts <span>›</span></a>
+              <div class="nav-profile-divider"></div>
+              <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Logout <span>↗</span></button></form>
+            </div>
+          </div>
+        </div>
+
+      {% elif current_user.is_authenticated and current_user.role=='recruiter' %}
+        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('recruiter.') %}active{% endif %}" href="{{ url_for('recruiter.dashboard') }}">Recruiter</a>
+        <a class="nav-link" href="{{ url_for('recruiter.analytics') }}">Analytics</a>
+        <a class="nav-link" href="{{ url_for('recruiter.activity') }}">Activity</a>
+        <a class="nav-link" href="{{ url_for('recruiter.messages') }}">Messages{% if unread_messages %} <span class="nav-badge">{{unread_messages}}</span>{% endif %}</a>
+        <a class="nav-link" href="{{ url_for('recruiter.interviews') }}">Interviews</a>
+        <div class="nav-user"><span class="avatar">{{ (current_user.email[:1] or 'U')|upper }}</span><span class="user-name">{{ current_user.email }}</span><form method="post" action="{{ url_for('auth.logout') }}" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="link-btn">Logout</button></form></div>
+      {% elif current_user.is_authenticated %}
+        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.') %}active{% endif %}" href="{{ url_for('admin.dashboard') }}">Admin</a>
+        <a class="nav-link" href="{{ url_for('admin.reports') }}">Reports</a>
+        <div class="nav-user"><span class="avatar">{{ (current_user.email[:1] or 'U')|upper }}</span><span class="user-name">{{ current_user.email }}</span><form method="post" action="{{ url_for('auth.logout') }}" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="link-btn">Logout</button></form></div>
+      {% else %}
+        <div class="guest-nav-actions"><a class="nav-link" href="{{ url_for('auth.login') }}">Login</a><a class="nav-join-btn" href="{{ url_for('auth.register') }}">Register</a></div>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+<main>
+  {% with messages=get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in messages %}<div class="flash {{cat}}"><span>{{msg}}</span><button class="flash-close" aria-label="Dismiss">×</button></div>{% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="footer"><div class="footer-inner"><div><span class="footer-brand">CareerHub</span><div>Find work. Build careers.</div></div><div>© 2026 CareerHub · Built for candidates and recruiters.</div></div></footer>
+<div class="toast" id="toast"></div>
+<script src="{{ url_for('static',filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

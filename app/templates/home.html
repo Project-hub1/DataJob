@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Create your CareerHub profile{% endblock %}
+{% block meta_description %}Create your CareerHub profile to search jobs, build your resume and apply to opportunities.{% endblock %}
+{% block content %}
+{% if not current_user.is_authenticated %}
+<section class="naukri-entry">
+  <div class="naukri-entry-inner">
+    <aside class="naukri-entry-aside">
+      <div class="entry-illustration" aria-hidden="true"><div class="entry-person">◒</div><div class="entry-shape entry-shape-a"></div><div class="entry-shape entry-shape-b"></div></div>
+      <h2>On registering, you can</h2>
+      <ul>
+        <li><span>✓</span> Build your profile and let recruiters find you</li>
+        <li><span>✓</span> Get job recommendations and alerts for your career</li>
+        <li><span>✓</span> Find jobs, apply and track your applications</li>
+      </ul>
+    </aside>
+    <div class="naukri-entry-card">
+      <div class="entry-card-copy">
+        <p class="eyebrow">CAREERHUB</p>
+        <h1>Create your CareerHub profile</h1>
+        <p>Search &amp; apply to jobs, build your resume and manage your career in one place.</p>
+      </div>
+      <form method="post" action="{{ url_for('auth.register') }}" class="entry-form" novalidate>
+        {{ register_form.hidden_tag() }}
+        <label>{{ register_form.full_name.label }}<span class="required">*</span>{{ register_form.full_name(class='input', placeholder='What is your name?', autocomplete='name') }}{% for e in register_form.full_name.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</label>
+        <label>{{ register_form.email.label }}<span class="required">*</span>{{ register_form.email(class='input', placeholder='Tell us your Email ID', autocomplete='email') }}<small>We'll send relevant jobs and updates to this email</small>{% for e in register_form.email.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</label>
+        <label>{{ register_form.password.label }}<span class="required">*</span><span class="password-wrap">{{ register_form.password(class='input', placeholder='Minimum 8 characters', autocomplete='new-password', id='entry-password') }}<button type="button" class="password-toggle" data-password-toggle="entry-password">Show</button></span>{% for e in register_form.password.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</label>
+        <label>{{ register_form.confirm_password.label }}<span class="required">*</span><span class="password-wrap">{{ register_form.confirm_password(class='input', placeholder='Re-enter your password', autocomplete='new-password', id='entry-confirm-password') }}<button type="button" class="password-toggle" data-password-toggle="entry-confirm-password">Show</button></span>{% for e in register_form.confirm_password.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</label>
+        <label>{{ register_form.mobile.label }}<span class="required">*</span><span class="mobile-input"><b>+91</b>{{ register_form.mobile(class='input', placeholder='Enter your mobile number', autocomplete='tel', inputmode='numeric') }}</span><small>Recruiters can contact you on this number</small>{% for e in register_form.mobile.errors %}<span class="field-error">{{ e }}</span>{% endfor %}</label>
+        <div class="entry-row">
+          <label class="entry-field">Work status<span class="required">*</span>{{ register_form.work_status(class='input', id='work-status') }}</label>
+          <label class="entry-field">Account type{{ register_form.role(class='input', id='account-role') }}</label>
+        </div>
+        <div class="entry-password-note">Use at least 8 characters with uppercase, lowercase, number and special character.</div>
+        {{ register_form.submit(class='btn full entry-submit') }}
+        {% if register_form.errors %}<div class="notice">Please review the highlighted fields.</div>{% endif %}
+      </form>
+      <div class="entry-divider"><span>Already registered?</span></div>
+      <a class="entry-login" href="{{ url_for('auth.login') }}">Login here</a>
+      <p class="entry-terms">By registering, you agree to use CareerHub responsibly and keep your profile information accurate.</p>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if not current_user.is_authenticated %}<script>
+(function(){
+  const role=document.getElementById('account-role');
+  const work=document.getElementById('work-status');
+  if(!role||!work)return;
+  function sync(){
+    const wrap=work.closest('label');
+    const isCandidate=role.value==='candidate';
+    wrap.style.display=isCandidate?'grid':'none';
+    work.required=isCandidate;
+  }
+  role.addEventListener('change',sync); sync();
+})();
+</script>{% endif %}
+{% endblock %}

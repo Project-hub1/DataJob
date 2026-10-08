@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Apply — {{job.title}}{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="form-wrap wide application-page">
+    <div class="application-top">
+      <p class="eyebrow">JOB APPLICATION</p>
+      <h1>Apply for {{job.title}}</h1>
+      <p class="muted">{{job.company.name}} · {{job.location}} · {{job.work_mode}}</p>
+      <div class="chips"><span>{{job.job_type}}</span><span>{{job.experience_min|experience_range(job.experience_max)}}</span><span>{{job.salary_min|lpa_range(job.salary_max)}}</span></div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="panel apply-card">
+      <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+      <div class="apply-section">
+        <div class="apply-section-title"><span>01</span><div><h2>About you</h2><p class="muted">These details are saved with this application.</p></div></div>
+        <div class="form-grid">
+          <label>Full name *<input class="input" name="applicant_name" value="{{profile.full_name}}" required></label>
+          <label>Age *<input class="input" type="number" min="13" max="100" name="applicant_age" value="{{profile.age or ''}}" required></label>
+        </div>
+        <label>Education *<textarea class="input" name="applicant_education" rows="3" required placeholder="e.g. Diploma in Computer Science — DSEU">{{education_text}}</textarea></label>
+        <label>Skills *<textarea class="input" name="applicant_skills" rows="3" required placeholder="Python, Java, SQL, Excel">{{profile.skills_text}}</textarea></label>
+        <label>Experience *<input class="input" name="applicant_experience" required value="{{experience_text}}" placeholder="Fresher / 1 year / relevant experience"></label>
+      </div>
+
+      <div class="apply-section">
+        <div class="apply-section-title"><span>02</span><div><h2>Resume</h2><p class="muted">Upload the resume you want the recruiter to receive.</p></div></div>
+        {% if primary_resume and primary_resume.original_name %}
+          <div class="saved-resume">
+            <div><b>Current primary resume</b><span>{{primary_resume.original_name}}</span></div>
+            <a href="{{url_for('candidate.resume')}}" target="_blank">View current ↗</a>
+          </div>
+          <p class="muted small-note">You can use your saved primary resume, or upload a different version below.</p>
+        {% endif %}
+        <label class="upload-box large-upload">Choose resume
+          <input type="file" name="application_resume" accept=".pdf,.doc,.docx" {% if not primary_resume or not primary_resume.data %}required{% endif %}>
+        </label>
+        <small class="muted">PDF, DOC or DOCX · max 5 MB. If you do not upload a new file, your saved primary resume is attached automatically.</small>
+      </div>
+
+      <div class="apply-section">
+        <div class="apply-section-title"><span>03</span><div><h2>Additional information</h2><p class="muted">Optional, but useful for the recruiter.</p></div></div>
+        <label>Cover letter<textarea class="input" name="cover_letter" rows="5" placeholder="Why are you interested in this role?"></textarea></label>
+        <label>Anything else<textarea class="input" name="additional_info" rows="3" placeholder="Notice period, preferred location, availability, etc."></textarea></label>
+      </div>
+
+      <div class="apply-footer">
+        <a class="btn ghost" href="{{url_for('jobs.detail',job_id=job.id)}}">Back to job</a>
+        <button class="btn" type="submit">Submit application →</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

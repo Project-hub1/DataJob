@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Candidate — {{ application.applicant_name or application.candidate.email }}{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="section-head"><div><p class="eyebrow">CANDIDATE PROFILE</p><h1>{{ application.applicant_name or application.candidate.email }}</h1><p class="muted">Applied for <b>{{ application.job.title }}</b> · {{ application.applied_at.strftime('%d %b %Y, %I:%M %p') }}</p></div><a class="btn ghost" href="{{ url_for('recruiter.pipeline', job_id=application.job_id) }}">← Pipeline</a></div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="section-head"><div><p class="eyebrow">MATCH</p><h2>{{ match_score }}% match</h2></div><span class="status status-{{application.status|lower|replace(' ','-')}}">{{ application.status }}</span></div>
+      {% if match_reasons %}<p>{{ match_reasons|join(' · ') }}</p>{% else %}<p class="muted">No strong match signals were found.</p>{% endif %}
+      <hr>
+      <h3>Candidate snapshot</h3>
+      <p><b>Education:</b> {{ application.applicant_education or 'Not provided' }}</p>
+      <p><b>Experience:</b> {{ application.applicant_experience or 'Fresher / Not provided' }}</p>
+      <p><b>Skills:</b> {{ application.applicant_skills or 'Not provided' }}</p>
+      {% if application.cover_letter %}<details open><summary>Cover letter</summary><p class="preline">{{ application.cover_letter }}</p></details>{% endif %}
+      {% if application.additional_info %}<details><summary>Additional information</summary><p class="preline">{{ application.additional_info }}</p></details>{% endif %}
+      {% if application.resume_filename %}<p><a class="btn" href="{{ url_for('recruiter.applicant_resume', application_id=application.id) }}">Download resume</a></p>{% endif %}
+    </div>
+    <div class="panel">
+      <p class="eyebrow">HIRING DECISION</p><h2>Recruiter evaluation</h2>
+      <form method="post" action="{{ url_for('recruiter.application_status', application_id=application.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Status</label><select name="status" style="width:100%;margin:6px 0 12px"><option {% if application.status=='Applied' %}selected{% endif %}>Applied</option><option {% if application.status=='Under Review' %}selected{% endif %}>Under Review</option><option {% if application.status=='Shortlisted' %}selected{% endif %}>Shortlisted</option><option {% if application.status=='Interview' %}selected{% endif %}>Interview</option><option {% if application.status=='Rejected' %}selected{% endif %}>Rejected</option><option {% if application.status=='Hired' %}selected{% endif %}>Hired</option></select>
+        <label>Rating</label><select name="recruiter_rating" style="width:100%;margin:6px 0 12px"><option value="">No rating</option>{% for r in range(1,6) %}<option value="{{r}}" {% if application.recruiter_rating==r %}selected{% endif %}>{{r}} / 5</option>{% endfor %}</select>
+        <label>Tags</label><input name="recruiter_tags" value="{{application.recruiter_tags or ''}}" placeholder="Python, strong communication, shortlist" maxlength="500" style="width:100%;margin:6px 0 12px">
+        <label>Private notes</label><textarea name="recruiter_notes" rows="6" maxlength="5000" style="width:100%;margin:6px 0 12px">{{application.recruiter_notes or ''}}</textarea>
+        <label>Timeline note</label><input name="note" maxlength="500" placeholder="Why did you move this candidate?" style="width:100%;margin:6px 0 12px">
+        <button class="btn">Save evaluation</button>
+      </form>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:18px"><p class="eyebrow">APPLICATION TIMELINE</p><h2>Hiring history</h2>
+    <div class="timeline">{% for item in history %}<div class="timeline-item"><b>{{item.status}}</b><span>{{item.changed_at.strftime('%d %b %Y, %I:%M %p')}}</span><p>{{item.note or 'Status updated'}}</p></div>{% else %}<p class="muted">No status history yet.</p>{% endfor %}</div>
+  </div>
+</section>
+{% endblock %}

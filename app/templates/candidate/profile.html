@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}My Profile — CareerHub{% endblock %}
+{% block content %}
+<section class="section profile-page">
+  <div class="profile-header">
+    <div>
+      <p class="eyebrow">MY PROFESSIONAL PROFILE</p>
+      <h1>{{ 'Edit your profile' if request.endpoint == 'candidate.edit_profile' else ('Your complete profile' if (profile.full_name or profile.photo or profile.resume_filename) else 'Create your complete profile') }}</h1>
+      <p class="muted">Update your photo, resume, personal details, education, experience, skills and projects anytime. Make your changes and save everything together.</p>
+    </div>
+    <div class="actions"><a class="btn ghost" href="{{url_for('candidate.dashboard')}}">← Dashboard</a>{% if request.endpoint != 'candidate.edit_profile' %}<a class="btn ghost" href="{{url_for('candidate.edit_profile')}}">Edit Profile</a>{% endif %}</div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="profile-form">
+    <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+
+    <div class="profile-layout">
+      <div class="profile-main">
+        <div class="panel profile-card">
+          <div class="profile-card-head">
+            <div>
+              <span class="step">01</span>
+              <div><h2>Personal details</h2><p class="muted">This information appears on your recruiter-facing profile.</p></div>
+            </div>
+          </div>
+          <div class="photo-upload">
+            <div class="profile-photo-preview">
+              {% if profile.photo %}
+                <img src="{{url_for('candidate.photo')}}" alt="Profile photo">
+              {% else %}
+                <span>{{(profile.full_name[:1] if profile.full_name else current_user.email[:1])|upper}}</span>
+              {% endif %}
+            </div>
+            <div>
+              <label class="upload-box">Choose profile photo
+                <input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp">
+              </label>
+              <small class="muted">JPG, PNG or WEBP · recommended square photo</small>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <label>Full name *<input class="input" name="full_name" value="{{profile.full_name}}" required placeholder="Your full name"></label>
+            <label>Age *<input class="input" type="number" name="age" min="13" max="100" value="{{profile.age or ''}}" required placeholder="e.g. 21"></label>
+            <label>Phone<input class="input" name="phone" value="{{profile.phone}}" placeholder="+91 98xxxxxx"></label>
+            <label>Work status<select class="input" name="work_status"><option value="fresher" {% if profile.work_status == "fresher" %}selected{% endif %}>Fresher</option><option value="experienced" {% if profile.work_status == "experienced" %}selected{% endif %}>Experienced</option></select></label>
+            <label>Location<input class="input" name="location" value="{{profile.location}}" placeholder="Delhi, India"></label>
+            <label>Professional headline<input class="input" name="headline" value="{{profile.headline}}" placeholder="e.g. Python Developer | SQL | Flask"></label>
+            <label>Preferred role<input class="input" name="preferred_role" value="{{profile.preferred_role}}" placeholder="e.g. Software Developer"></label>
+            <label>Expected salary (LPA)<input class="input" type="number" min="0" step="0.1" name="expected_salary" value="{% if profile.expected_salary %}{{profile.expected_salary/100000}}{% endif %}" placeholder="e.g. 5"></label>
+          </div>
+          <label>Professional summary<textarea class="input" name="summary" rows="5" maxlength="5000" placeholder="Tell recruiters about yourself, your strengths and career goals.">{{profile.summary}}</textarea></label>
+          <label>Skills *<textarea class="input" name="skills_text" rows="3" required placeholder="Python, Java, SQL, Excel, React, Communication">{{profile.skills_text}}</textarea><small class="muted">Separate skills with commas.</small></label>
+        </div>
+
+        <div class="panel profile-card">
+          <div class="profile-card-head"><div><span class="step">02</span><div><h2>Education</h2><p class="muted">Add your diploma, degree, school or other education.</p></div></div><button type="button" class="btn small ghost" data-add="education">+ Add education</button></div>
+          <div id="education-list" class="repeat-list">
+            {% for e in profile.education %}
+            <div class="repeat-row">
+              <input class="input" name="education_degree[]" value="{{e.degree}}" placeholder="Degree / Diploma">
+              <input class="input" name="education_institution[]" value="{{e.institution}}" placeholder="College / Institution">
+              <input class="input" type="number" name="education_year[]" value="{{e.year or ''}}" placeholder="Year">
+              <button type="button" class="remove-row" aria-label="Remove">×</button>
+            </div>
+            {% endfor %}
+            {% if not profile.education %}
+            <div class="repeat-row">
+              <input class="input" name="education_degree[]" placeholder="Degree / Diploma">
+              <input class="input" name="education_institution[]" placeholder="College / Institution">
+              <input class="input" type="number" name="education_year[]" placeholder="Year">
+              <button type="button" class="remove-row" aria-label="Remove">×</button>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="panel profile-card">
+          <div class="profile-card-head"><div><span class="step">03</span><div><h2>Experience</h2><p class="muted">Add jobs, internships or relevant work experience.</p></div></div><button type="button" class="btn small ghost" data-add="experience">+ Add experience</button></div>
+          <div id="experience-list" class="repeat-list">
+            {% for e in profile.experience %}
+            <div class="repeat-row">
+              <input class="input" name="experience_title[]" value="{{e.title}}" placeholder="Job title / Internship">
+              <input class="input" name="experience_company[]" value="{{e.company}}" placeholder="Company">
+              <input class="input" type="number" step="0.1" min="0" name="experience_years[]" value="{{e.years or ''}}" placeholder="Years">
+              <button type="button" class="remove-row" aria-label="Remove">×</button>
+            </div>
+            {% endfor %}
+            {% if not profile.experience %}
+            <div class="repeat-row">
+              <input class="input" name="experience_title[]" placeholder="Job title / Internship">
+              <input class="input" name="experience_company[]" placeholder="Company">
+              <input class="input" type="number" step="0.1" min="0" name="experience_years[]" placeholder="Years">
+              <button type="button" class="remove-row" aria-label="Remove">×</button>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="panel profile-card">
+          <div class="profile-card-head"><div><span class="step">04</span><div><h2>Certifications</h2><p class="muted">Add certificates that strengthen your application.</p></div></div><button type="button" class="btn small ghost" data-add="certification">+ Add certificate</button></div>
+          <div id="certification-list" class="repeat-list">
+            {% for c in profile.certifications %}
+            <div class="repeat-row four">
+              <input class="input" name="cert_name[]" value="{{c.name}}" placeholder="Certificate name">
+              <input class="input" name="cert_issuer[]" value="{{c.issuer}}" placeholder="Issuer">
+              <input class="input" type="number" name="cert_year[]" value="{{c.issue_year or ''}}" placeholder="Year">
+              <input class="input" name="cert_url[]" value="{{c.credential_url}}" placeholder="Credential URL">
+              <button type="button" class="remove-row" aria-label="Remove">×</button>
+            </div>
+            {% endfor %}
+            {% if not profile.certifications %}
+            <div class="repeat-row four">
+              <input class="input" name="cert_name[]" placeholder="Certificate name">
+              <input class="input" name="cert_issuer[]" placeholder="Issuer">
+              <input class="input" type="number" name="cert_year[]" placeholder="Year">
+              <input class="input" name="cert_url[]" placeholder="Credential URL">
+              <button type="button" class="remove-row" aria-label="Remove">×</button>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="panel profile-card">
+          <div class="profile-card-head"><div><span class="step">05</span><div><h2>Projects</h2><p class="muted">Show recruiters what you have actually built.</p></div></div><button type="button" class="btn small ghost" data-add="project">+ Add project</button></div>
+          <div id="project-list" class="repeat-list">
+            {% for p in profile.projects %}
+            <div class="project-row">
+              <div class="repeat-row two">
+                <input class="input" name="project_name[]" value="{{p.name}}" placeholder="Project name">
+                <input class="input" name="project_technologies[]" value="{{p.technologies}}" placeholder="Technologies">
+                <button type="button" class="remove-row" aria-label="Remove">×</button>
+              </div>
+              <textarea class="input" name="project_description[]" rows="2" placeholder="What did you build?">{{p.description}}</textarea>
+              <input class="input" name="project_url[]" value="{{p.project_url}}" placeholder="GitHub / live project URL">
+            </div>
+            {% endfor %}
+            {% if not profile.projects %}
+            <div class="project-row">
+              <div class="repeat-row two">
+                <input class="input" name="project_name[]" placeholder="Project name">
+                <input class="input" name="project_technologies[]" placeholder="Technologies">
+                <button type="button" class="remove-row" aria-label="Remove">×</button>
+              </div>
+              <textarea class="input" name="project_description[]" rows="2" placeholder="What did you build?"></textarea>
+              <input class="input" name="project_url[]" placeholder="GitHub / live project URL">
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="panel profile-card">
+          <div class="profile-card-head"><div><span class="step">06</span><div><h2>Professional links</h2><p class="muted">Optional links recruiters can open.</p></div></div></div>
+          <div class="form-grid">
+            <label>LinkedIn<input class="input" name="linkedin" value="{{profile.links.linkedin if profile.links else ''}}" placeholder="https://linkedin.com/in/..."></label>
+            <label>GitHub<input class="input" name="github" value="{{profile.links.github if profile.links else ''}}" placeholder="https://github.com/..."></label>
+            <label>Portfolio<input class="input" name="portfolio" value="{{profile.links.portfolio if profile.links else ''}}" placeholder="https://..."></label>
+          </div>
+        </div>
+      </div>
+
+      <aside class="profile-side">
+        <div class="panel sticky-card">
+          <span class="eyebrow">DOCUMENTS</span>
+          <h2>Resume</h2>
+          {% if profile.resume_filename %}
+            <div class="resume-ready"><span>✓</span><div><b>{{profile.resume_original_name}}</b><small>Primary resume</small></div></div>
+            <a class="btn small ghost full" href="{{url_for('candidate.resume')}}">Download current resume</a>
+          {% else %}
+            <div class="notice">No resume uploaded yet.</div>
+          {% endif %}
+          <label class="upload-box resume-upload">Choose resume
+            <input type="file" name="resume" accept=".pdf,.doc,.docx">
+          </label>
+          <small class="muted">PDF, DOC or DOCX · max 5 MB</small>
+          <hr>
+          <div class="save-summary">
+            <b>One-click save</b>
+            <span>All sections on this page are saved together. You no longer need separate Save, Add or Upload buttons.</span>
+          </div>
+          <button class="btn full save-profile-btn" type="submit">{{ 'Update profile' if request.endpoint == 'candidate.edit_profile' else 'Save complete profile' }}</button>
+          <a class="btn ghost full" href="{{url_for('candidate.dashboard')}}">Cancel</a>
+        </div>
+      </aside>
+    </div>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const templates = {
+    education: () => `<div class="repeat-row">
+      <input class="input" name="education_degree[]" placeholder="Degree / Diploma">
+      <input class="input" name="education_institution[]" placeholder="College / Institution">
+      <input class="input" type="number" name="education_year[]" placeholder="Year">
+      <button type="button" class="remove-row" aria-label="Remove">×</button></div>`,
+    experience: () => `<div class="repeat-row">
+      <input class="input" name="experience_title[]" placeholder="Job title / Internship">
+      <input class="input" name="experience_company[]" placeholder="Company">
+      <input class="input" type="number" step="0.1" min="0" name="experience_years[]" placeholder="Years">
+      <button type="button" class="remove-row" aria-label="Remove">×</button></div>`,
+    certification: () => `<div class="repeat-row four">
+      <input class="input" name="cert_name[]" placeholder="Certificate name">
+      <input class="input" name="cert_issuer[]" placeholder="Issuer">
+      <input class="input" type="number" name="cert_year[]" placeholder="Year">
+      <input class="input" name="cert_url[]" placeholder="Credential URL">
+      <button type="button" class="remove-row" aria-label="Remove">×</button></div>`,
+    project: () => `<div class="project-row">
+      <div class="repeat-row two">
+        <input class="input" name="project_name[]" placeholder="Project name">
+        <input class="input" name="project_technologies[]" placeholder="Technologies">
+        <button type="button" class="remove-row" aria-label="Remove">×</button>
+      </div>
+      <textarea class="input" name="project_description[]" rows="2" placeholder="What did you build?"></textarea>
+      <input class="input" name="project_url[]" placeholder="GitHub / live project URL">
+    </div>`
+  };
+  document.querySelectorAll('[data-add]').forEach(btn => btn.addEventListener('click', () => {
+    const type=btn.dataset.add, list=document.getElementById(type+'-list');
+    list.insertAdjacentHTML('beforeend', templates[type]());
+    list.lastElementChild.querySelector('input,textarea')?.focus();
+  }));
+  document.addEventListener('click', e => {
+    if(e.target.classList.contains('remove-row')){
+      const row=e.target.closest('.project-row') || e.target.closest('.repeat-row');
+      if(row) row.remove();
+    }
+  });
+  const form=document.querySelector('.profile-form');
+  form?.addEventListener('submit',()=>{
+    const btn=form.querySelector('.save-profile-btn');
+    if(btn){btn.disabled=true;btn.textContent='Saving profile…';}
+  });
+})();
+</script>
+{% endblock %}

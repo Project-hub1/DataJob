@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block title %}My Home — CareerHub{% endblock %}
+{% block content %}
+<section class="candidate-home">
+  <div class="candidate-shell">
+    <aside class="candidate-sidebar">
+      <div class="candidate-profile-card">
+        <div class="candidate-avatar-wrap">
+          <div class="candidate-avatar">
+            {% if profile.photo %}<img src="{{ url_for('candidate.photo') }}" alt="{{ profile.full_name or 'Profile' }}">{% else %}<span>{{ (profile.full_name[:1] if profile.full_name else current_user.email[:1])|upper }}</span>{% endif %}
+          </div>
+          <span class="completion-ring">{{ profile_completion }}%</span>
+        </div>
+        <h2>{{ profile.full_name or 'Complete your profile' }}</h2>
+        <p class="candidate-headline">{{ profile.headline or 'Add a professional headline' }}</p>
+        {% if profile.location %}<p class="candidate-location">⌖ {{ profile.location }}</p>{% endif %}
+
+        {% if profile_completion < 100 %}
+        <div class="profile-missing">
+          <b>What are you missing?</b>
+          {% if not profile.preferred_role %}<span>✓ Career preferences</span>{% endif %}
+          {% if not profile.skills_text %}<span>✓ Skills</span>{% endif %}
+          {% if not profile.resume_filename and not resume_count %}<span>✓ Resume</span>{% endif %}
+          {% if not profile.education %}<span>✓ Education</span>{% endif %}
+          {% if not profile.experience %}<span>✓ Experience</span>{% endif %}
+          <a class="btn full" href="{{ url_for('candidate.edit_profile') }}">Complete profile</a>
+        </div>
+        {% else %}
+        <div class="profile-complete"><b>✓ Profile complete</b><span>You're ready to get better-matched opportunities.</span></div>
+        {% endif %}
+      </div>
+
+      <nav class="candidate-side-nav" aria-label="Candidate navigation">
+        <a class="active" href="{{ url_for('main.home') }}"><span>⌂</span> My home</a>
+        <a href="{{ url_for('jobs.listing') }}"><span>▣</span> Jobs</a>
+        <a href="{{ url_for('jobs.companies') }}"><span>▥</span> Companies</a>
+        <a href="{{ url_for('candidate.resume_builder') }}"><span>▤</span> Resume Builder</a>
+        <div class="side-divider"></div>
+        <a href="{{ url_for('candidate.profile') }}">About & profile</a>
+        <a href="{{ url_for('candidate.edit_profile') }}">Skills & education</a>
+        <a href="{{ url_for('candidate.applications') }}">Applications</a>
+        <a href="{{ url_for('candidate.saved_jobs') }}">Saved jobs</a>
+      </nav>
+    </aside>
+
+    <main class="candidate-feed">
+      <div class="candidate-welcome">
+        <div><p class="eyebrow">YOUR CAREER SPACE</p><h1>Good to see you{% if profile.full_name %}, {{ profile.full_name.split(' ')[0] }}{% endif %} 👋</h1><p>Discover relevant jobs, keep your profile fresh and track every application from one place.</p></div>
+        <a class="btn" href="{{ url_for('jobs.listing') }}">Find jobs</a>
+      </div>
+
+      <section class="candidate-panel recommended-panel">
+        <div class="candidate-panel-head"><div><p class="eyebrow">PERSONALISED FOR YOU</p><h2>Recommended jobs</h2></div><a href="{{ url_for('jobs.listing') }}">View all →</a></div>
+        {% if recommended %}
+        <div class="recommend-grid">
+          {% for item in recommended %}{% set job=item.job %}
+          <a class="recommend-card" href="{{ url_for('jobs.detail', job_id=job.id) }}">
+            <div class="recommend-top"><div class="company-logo">{{ job.company.name[:1] }}</div><span class="match-badge">✦ {{ item.score }}%</span></div>
+            <h3>{{ job.title }}</h3><p>{{ job.company.name }}</p>
+            <div class="job-meta"><span>⌖ {{ job.location }}</span><span>{{ job.work_mode }}</span></div>
+            <div class="job-salary">{{ job.salary_min|lpa_range(job.salary_max) }}</div>
+            {% if item.reasons %}<div class="match-reasons">{% for reason in item.reasons[:3] %}<span>✓ {{ reason }}</span>{% endfor %}</div>{% endif %}
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="recommend-empty"><h3>Get better job recommendations</h3><p>Tell us your preferred role, skills, location and salary to improve your matches.</p><a class="btn" href="{{ url_for('candidate.edit_profile') }}">Add career preferences</a></div>
+        {% endif %}
+      </section>
+
+      <div class="career-action-grid">
+        <a class="career-banner resume-banner" href="{{ url_for('candidate.resume_builder') }}"><div class="banner-icon">▤</div><div><h3>Create your resume</h3><p>Build an ATS-friendly resume from your CareerHub profile.</p></div><span>Build resume →</span></a>
+        <a class="career-banner profile-banner" href="{{ url_for('candidate.edit_profile') }}"><div class="banner-icon">✦</div><div><h3>Complete your profile</h3><p>{{ profile_completion }}% complete · Add missing details to improve recruiter visibility.</p></div><span>Update profile →</span></a>
+      </div>
+
+      <section class="candidate-panel">
+        <div class="candidate-panel-head"><div><p class="eyebrow">PROFILE SNAPSHOT</p><h2>Your professional profile</h2></div><a href="{{ url_for('candidate.profile') }}">View full profile →</a></div>
+        <div class="profile-snapshot-grid">
+          <article><span>About</span><p>{{ profile.summary or 'Add a short professional summary so recruiters quickly understand your strengths.' }}</p></article>
+          <article><span>Skills</span><div class="snapshot-tags">{% for skill in (profile.skills_text or '').split(',')[:8] if skill.strip() %}<b>{{ skill.strip() }}</b>{% else %}<p>Add your technical and professional skills.</p>{% endfor %}</div></article>
+          <article><span>Education</span>{% for e in profile.education[:2] %}<p><b>{{ e.degree }}</b><small>{{ e.institution }}{% if e.year %} · {{ e.year }}{% endif %}</small></p>{% else %}<p>Add your diploma/degree and institution.</p>{% endfor %}</article>
+          <article><span>Experience</span>{% for e in profile.experience[:2] %}<p><b>{{ e.title }}</b><small>{{ e.company }}{% if e.years %} · {{ e.years }} yrs{% endif %}</small></p>{% else %}<p>Add internships, projects or work experience.</p>{% endfor %}</article>
+          <article><span>Projects</span>{% for p in profile.projects[:2] %}<p><b>{{ p.name }}</b><small>{{ p.technologies or 'Project details' }}</small></p>{% else %}<p>Show recruiters what you have built.</p>{% endfor %}</article>
+          <article><span>Certifications</span>{% for c in profile.certifications[:2] %}<p><b>{{ c.name }}</b><small>{{ c.issuer or 'Certification' }}{% if c.issue_year %} · {{ c.issue_year }}{% endif %}</small></p>{% else %}<p>Add certifications that strengthen your profile.</p>{% endfor %}</article>
+          <article><span>Resume</span><p>{% if profile.resume_filename or resume_count %}<b>Primary resume ready</b><small><a href="{{ url_for('candidate.resume') }}">Download resume</a></small>{% else %}<b>No resume yet</b><small><a href="{{ url_for('candidate.edit_profile') }}">Upload one</a></small>{% endif %}</p></article>
+          <article><span>Links & preferences</span><p>{% if profile.links and (profile.links.linkedin or profile.links.github or profile.links.portfolio) %}<b>Professional links added</b>{% else %}<b>Add LinkedIn / GitHub / portfolio</b>{% endif %}<small>{{ profile.preferred_role or 'Add your preferred role' }}</small></p></article>
+        </div>
+      </section>
+
+      <div class="candidate-two-col">
+        <section class="candidate-panel"><div class="candidate-panel-head"><div><p class="eyebrow">APPLICATIONS</p><h2>Recent applications</h2></div><a href="{{ url_for('candidate.applications') }}">View all →</a></div>{% for a in applications %}<a class="application-row" href="{{ url_for('candidate.application_timeline', application_id=a.id) }}"><div><b>{{ a.job.title }}</b><small>{{ a.job.company.name }} · {{ a.applied_at.strftime('%d %b %Y') }}</small></div><span class="status status-{{ a.status|lower|replace(' ','-') }}">{{ a.status }}</span></a>{% else %}<p class="muted">No applications yet. <a href="{{ url_for('jobs.listing') }}">Start applying →</a></p>{% endfor %}</section>
+        <section class="candidate-panel"><div class="candidate-panel-head"><div><p class="eyebrow">RECENTLY VIEWED</p><h2>Jobs you viewed</h2></div><a href="{{ url_for('jobs.listing') }}">Find more →</a></div>{% for view in recent_views %}<a class="application-row" href="{{ url_for('jobs.detail', job_id=view.job.id) }}"><div><b>{{ view.job.title }}</b><small>{{ view.job.company.name }} · {{ view.job.location }}</small></div><span class="job-salary">{{ view.job.salary_min|lpa_range(view.job.salary_max) }}</span></a>{% else %}<p class="muted">Your recently viewed jobs will appear here.</p>{% endfor %}</section>
+      </div>
+    </main>
+
+    <aside class="candidate-right-rail">
+      <div class="rail-card career-tip"><span class="rail-icon">✦</span><h3>Complete your profile</h3><p>A stronger profile helps CareerHub show you more relevant jobs and helps recruiters understand your background.</p><div class="rail-progress"><span style="width:{{ profile_completion }}%"></span></div><b>{{ profile_completion }}% complete</b><a class="btn small full" href="{{ url_for('candidate.edit_profile') }}">Improve profile</a></div>
+      <div class="rail-card"><p class="eyebrow">QUICK ACCESS</p><h3>Career tools</h3><a class="rail-link" href="{{ url_for('candidate.resume_builder') }}">Resume Builder <span>→</span></a><a class="rail-link" href="{{ url_for('candidate.alerts') }}">Job Alerts <span>→</span></a><a class="rail-link" href="{{ url_for('candidate.saved_searches') }}">Saved Searches <span>→</span></a><a class="rail-link" href="{{ url_for('candidate.messages') }}">Messages <span>→</span></a><a class="rail-link" href="{{ url_for('candidate.interviews') }}">Interviews <span>→</span></a></div>
+      <div class="rail-card"><p class="eyebrow">PROFILE CHECK</p><h3>Recruiter-ready?</h3><ul class="check-list"><li class="{% if profile.photo %}done{% endif %}">Profile photo</li><li class="{% if profile.resume_filename or resume_count %}done{% endif %}">Resume</li><li class="{% if profile.skills_text %}done{% endif %}">Skills</li><li class="{% if profile.education %}done{% endif %}">Education</li><li class="{% if profile.experience %}done{% endif %}">Experience</li><li class="{% if profile.projects %}done{% endif %}">Projects</li></ul></div>
+    </aside>
+  </div>
+</section>
+{% endblock %}

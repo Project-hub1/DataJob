@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Applicants — {{job.title}}{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="section-head"><div><p class="eyebrow">APPLICANTS</p><h1>{{job.title}}</h1><p class="muted">{{applications|length}} applications · {{job.location}} · {{job.work_mode}}</p></div><a class="btn ghost" href="{{url_for('recruiter.jobs')}}">← Back to jobs</a></div>
+  <div class="panel">
+    <form method="get" class="search-bar" style="margin-bottom:18px"><input name="q" value="{{search or ''}}" placeholder="Search candidate, skill or education"><select name="status"><option value="">All statuses</option>{% for st in ['Applied','Under Review','Shortlisted','Interview','Rejected','Hired','Withdrawn'] %}<option value="{{st}}" {% if status==st %}selected{% endif %}>{{st}}</option>{% endfor %}</select><select name="rating"><option value="">Any rating</option>{% for r in range(5,0,-1) %}<option value="{{r}}" {% if rating==r|string %}selected{% endif %}>{{r}}+ stars</option>{% endfor %}</select><button class="btn small">Filter</button><a class="btn small ghost" href="{{url_for('recruiter.pipeline',job_id=job.id)}}">Pipeline view</a></form>
+    {% for a in applications %}
+    <div class="application-card">
+      <div style="min-width:0">
+        <h3>{{a.applicant_name or a.candidate.candidate_profile.full_name or a.candidate.email}}</h3>
+        <p><b>Education:</b> {{a.applicant_education or 'Not provided'}}</p>
+        <p><b>Age:</b> {{a.applicant_age or '—'}} · <b>Experience:</b> {{a.applicant_experience or 'Fresher / Not provided'}}</p>
+        <p><b>Skills:</b> {{a.applicant_skills or a.candidate.candidate_profile.skills_text or 'Not provided'}}</p>
+        <p>Applied {{a.applied_at.strftime('%d %b %Y')}}</p>
+        <span class="status status-{{a.status|lower|replace(' ','-')}}">{{a.status}}</span>
+        {% if a.cover_letter %}<details style="margin-top:10px"><summary>Cover letter</summary><p class="preline">{{a.cover_letter}}</p></details>{% endif %}
+        {% if a.additional_info %}<details style="margin-top:8px"><summary>Additional information</summary><p class="preline">{{a.additional_info}}</p></details>{% endif %}
+        {% if a.resume_filename %}<p><a class="btn small ghost" href="{{url_for('recruiter.applicant_resume',application_id=a.id)}}">Download applicant resume ↗</a></p>{% endif %}
+      </div>
+      <form method="post" action="{{url_for('recruiter.application_status',application_id=a.id)}}" class="status-form">
+        <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+        <select name="status"><option {% if a.status=='Applied' %}selected{% endif %}>Applied</option><option {% if a.status=='Under Review' %}selected{% endif %}>Under Review</option><option {% if a.status=='Shortlisted' %}selected{% endif %}>Shortlisted</option><option {% if a.status=='Interview' %}selected{% endif %}>Interview</option><option {% if a.status=='Rejected' %}selected{% endif %}>Rejected</option><option {% if a.status=='Hired' %}selected{% endif %}>Hired</option></select>
+        <textarea name="recruiter_notes" placeholder="Private recruiter notes" rows="3" style="min-width:240px">{{a.recruiter_notes or ""}}</textarea><select name="recruiter_rating"><option value="">Rate</option>{% for r in range(1,6) %}<option value="{{r}}" {% if a.recruiter_rating==r %}selected{% endif %}>{{r}} ★</option>{% endfor %}</select><input name="recruiter_tags" value="{{a.recruiter_tags or ""}}" placeholder="Tags: strong-python, senior" maxlength="500"><input name="note" placeholder="Timeline note" maxlength="500"><button class="btn small">Save candidate</button><a class="btn small ghost" href="{{url_for('recruiter.application_detail',application_id=a.id)}}">View profile</a>
+      </form>
+    </div>
+    {% else %}
+    <div class="empty"><h2>No applicants yet</h2><p>Applications will appear here when candidates apply.</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
